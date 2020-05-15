@@ -2,27 +2,28 @@ void Altimeter()
 {
 
  //send a request
-Wire.beginTransmission(HONEYWELL_I2C); // "Hey! Message for you"
+Wire.beginTransmission(HONEYWELL_I2C); 
 Wire.write(1);  // send a bit asking for register one, the data register
-Wire.endTransmission(); // "Thanks, goodbye..."
+Wire.endTransmission(); 
 // now get the data from the sensor
 delay (20);
 
 Wire.requestFrom(HONEYWELL_I2C, 4);
 while(Wire.available() == 0);
-byte a     = Wire.read(); // first received byte stored here ....Example bytes one: 00011001 10000000
-byte b     = Wire.read(); // second received byte stored here ....Example bytes two: 11100111 00000000
-byte c     = Wire.read(); // third received byte stored here
-byte d     = Wire.read(); // fourth received byte stored here
+byte a     = Wire.read(); // first received byte 
+byte b     = Wire.read(); // second received byte 
+byte c     = Wire.read(); // third received byte
+byte d     = Wire.read(); // fourth received byte 
 
 byte status1 = (a & 0xc0) >> 6;  // first 2 bits from first byte
 
 int bridge_data = ((a & 0x3f) << 8) + b;
-int temperature_data = ((c << 8) + (d & 0xe0)) >> 5;
 
-           if ( temperature_data == 65535 ) {
-               Serial.println("Static pressure sensor is missing");
-           }
+temperature_data = (int)(c)*8;
+
+//           if ( temperature_data == 65535 ) {
+//               Serial.println("Static pressure sensor is missing");
+//           }
            if ( status1 == 1 ) {
                Serial.println("Warning: Command Mode");// *Command mode is used for programming the sensor. This mode should not be seen during normal operation.
               // Serial.println(status, BIN);   
@@ -45,14 +46,14 @@ int temperature_data = ((c << 8) + (d & 0xe0)) >> 5;
        Alt2 = (float)44330 * (1 - pow(((float) pressure/((float) QNH * 100)), 0.190295)) * 3.281;
        VSI = ((Alt2 - Alt1) * 1000.0 * 60.0)/(VSI_Timer2 - VSI_Timer1); 
        vsiFilter();
-       Serial.print("Alt1 = ");
-       Serial.print(Alt1);
-       Serial.print(" Alt2 = ");
-       Serial.print(Alt2);
-       Serial.print(" dT= ");
-       Serial.print(VSI_Timer2 - VSI_Timer1);
-       Serial.print(" VSI = ");
-       Serial.println(VSI);
+//       Serial.print("Alt1 = ");
+//       Serial.print(Alt1);
+//       Serial.print(" Alt2 = ");
+//       Serial.print(Alt2);
+//       Serial.print(" dT= ");
+//       Serial.print(VSI_Timer2 - VSI_Timer1);
+//       Serial.print(" VSI = ");
+//       Serial.println(VSI);
        // cheat
        if (abs(VSI)<60) {
         VSI=0;
@@ -64,7 +65,13 @@ int temperature_data = ((c << 8) + (d & 0xe0)) >> 5;
 //           Serial.print("status      ");
 //           Serial.println(status1, BIN);
 //           Serial.print("pressure  RAW  (Pa) ");
-//           Serial.print(pressure);
+//           Serial.println(pressure);
+//           Serial.print("Temperature  RAW ");
+//           Serial.println((temperature_data*200/2047)-50);
+//           Serial.print("c = ");
+//           Serial.println(c);
+//           Serial.print("d = ");
+//           Serial.println(d);
 //           Serial.print(",");
 //           PressureFilter();
 //         Serial.print("pressure  Filtered  (Pa) ");

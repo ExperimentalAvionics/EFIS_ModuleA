@@ -1,7 +1,7 @@
 void Send_QNH() {
   buf[0] = QNH;
   buf[1] = QNH >> 8;
-  CAN.sendMsgBuf(46, 0, 2, buf); 
+  CAN.sendMsgBuf(CAN_QNH_Msg_ID, 0, 2, buf); 
 }
 
 void Write_QNH() {
@@ -19,4 +19,3 @@ if (temp_QNH >2000 or temp_QNH < 10) {
 }
   return temp_QNH;
 }
-
