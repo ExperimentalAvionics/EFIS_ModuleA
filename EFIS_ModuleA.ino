@@ -6,34 +6,40 @@
 
 // Honeywell barometer ***************************************************************************************
 #define HONEYWELL_I2C 0x28 // each I2C object has a unique bus address
-                          // HSCDANN015PA2A3 has rabge 0 PSI - 15 PSI (0hPa - 1034.21hPa)
+                          // HSCDANN015PA2A3 has range 0 PSI - 15 PSI (0hPa - 1034.21hPa)
 #define OUTPUT_MIN 1638        // 1638 counts (10% of 2^14 counts or 0x0666)
 #define OUTPUT_MAX 14745       // 14745 counts (90% of 2^14 counts or 0x3999)
 #define PRESSURE_MIN 0        // min is 0 for sensors that give absolute values
 #define PRESSURE_MAX 103421   // Pressure in Pascals
 // more dteils here https://sensing.honeywell.com/index.php?ci_id=45841
 
-// Kalman filter valiables for Pressure sensor
-  float Pr_q = 1; //process noise covariance
-  float Pr_r = 1000; //measurement noise covariance
-  float Pr_x = 99400; //value
-  float Pr_p; //estimation error covariance
-  float Pr_k; //kalman gain
-  float pressure = 0;
-  unsigned long Pressure_Int = 0;  //RAW pressure in hPa muliplied by 10 and converted to integer for sending via CAN as 2-byte value
+float pressure = 0;
+unsigned long Pressure_Int = 0;  //RAW pressure in hPa muliplied by 10 and converted to integer for sending via CAN as 2-byte value
+long VSI = 0;
 
-// Kalman filter valiables for VSI
-  float VSI_q = 1; //process noise covariance
-  float VSI_r = 100; //measurement noise covariance
-  float VSI_x = 0; //value
-  float VSI_p; //estimation error covariance
-  float VSI_k; //kalman gain
-  int VSI = 0;
-  unsigned long VSI_Timer1 = 0;
-  unsigned long VSI_Timer2 = 0;
-  
-  int Alt1 = 0;
-  int Alt2 = 0;
+// Moving Average array for Altitude and VSI
+#define AltArraySize 60 // averaging accross last 60 values
+#define VSIArraySize 15 // averaging accross last 0 values
+long PressureArray[AltArraySize];
+long VSITimeArray[VSIArraySize];
+float VSIArray[VSIArraySize]; // array of values to calculate VSI
+int AltArrayIndex = 0;
+int VSIArrayIndex = 0;
+long PressureSum = 0;
+long VSIperiod = 200; // period of logging the altitude for VSI purpose, milliseconds
+long VSIlast = 0; // last time we logged altitude for VSI calculation
+// int VSIFirstIndex = 0; // temp variable to figure out the earliest value in the VSI array.
+
+// stuff fo linear regression
+float  SumAlt = 0; 
+unsigned long SumTimeSquare = 0;
+unsigned long SumTime = 0;
+unsigned long SumTimeAlt = 0;
+unsigned long VSITimeSquareArray[VSIArraySize];
+unsigned long TimeShift = 0;
+
+int i = 0;
+
 
   int QNH = 1013; //hPa
   float Altitude = 0; // Altitude in feet
@@ -70,7 +76,7 @@ const unsigned int CAN_AoA_Msg_ID = 41; // CAN Msg ID in DEC
 const unsigned int CAN_OAT_Msg_ID = 42; // CAN Msg ID in DEC
 const unsigned int CAN_RAW_Msg_ID = 43; // CAN Msg ID in DEC
 const unsigned int CAN_QNH_Msg_ID = 46; // CAN Msg ID in DEC
-const unsigned int CAN_Air_Period = 200; // How often message sent in milliseconds
+const unsigned int CAN_Air_Period = 300; // How often message sent in milliseconds
 const unsigned int CAN_AoA_Period = 200; // How often message sent in milliseconds
 const unsigned int CAN_OAT_Period = 2000; // How often message sent in milliseconds
 const unsigned int CAN_RAW_Period = 500; // How often message sent in milliseconds
@@ -107,9 +113,7 @@ void setup()
  QNH = Read_QNH(); 
 
  Altimeter();
- VSI_Timer1 = millis();
- Alt1 = (float)44330 * (1 - pow(((float) pressure/((float) QNH * 100)), 0.190295)) * 3.281;;
- Alt2 = (float)44330 * (1 - pow(((float) pressure/((float) QNH * 100)), 0.190295)) * 3.281;;
+ VSIlast = millis();
   
 }
 
@@ -155,17 +159,7 @@ if(CAN_MSGAVAIL == CAN.checkReceive())            // check if data coming
 // Send Air data
 if (millis() > CAN_Air_Timestamp + CAN_Air_Period + random(0, 50)) {
 
-          Serial.print(pressure);
-          Altitude = (float)44330 * (1 - pow(((float) pressure/((float) QNH * 100)), 0.190295)) * 3.281;
-          Serial.print(",");
-          Serial.print("Altitude = ");
-          Serial.println(Altitude);
-
-          Serial.print("===================== QNH: ");
-          Serial.println(QNH);
-
-
-          AltitudeINT = Altitude;
+  AltitudeINT = Altitude;
 
   canMsg[0] = Airspeed;
   canMsg[1] = Airspeed >> 8;
@@ -223,10 +217,10 @@ if (millis() > CAN_RAW_Timestamp + CAN_RAW_Period + random(0, 50)) {
   } else {
      canMsg[2] = temperature_raw;
   }
-  Serial.print("RAW pressure = ");
-  Serial.println(Pressure_Int);
-  Serial.print("Sensor temperature = ");
-  Serial.println(temperature_raw);
+//  Serial.print("RAW pressure = ");
+//  Serial.println(Pressure_Int);
+//  Serial.print("Sensor temperature = ");
+//  Serial.println(temperature_raw);
   
   CAN.sendMsgBuf(CAN_RAW_Msg_ID, 0, 3, canMsg); 
 

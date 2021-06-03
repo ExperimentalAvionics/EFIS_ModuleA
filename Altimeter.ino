@@ -15,6 +15,8 @@ byte b     = Wire.read(); // second received byte
 byte c     = Wire.read(); // third received byte
 byte d     = Wire.read(); // fourth received byte 
 
+  PressureSum -= PressureArray[AltArrayIndex];
+
 byte status1 = (a & 0xc0) >> 6;  // first 2 bits from first byte
 
 int bridge_data = ((a & 0x3f) << 8) + b;
@@ -39,73 +41,71 @@ temperature_data = (int)(c)*8;
 
    pressure = 1.0 * (bridge_data - OUTPUT_MIN) * (PRESSURE_MAX - PRESSURE_MIN) / (OUTPUT_MAX - OUTPUT_MIN) + PRESSURE_MIN;
 
-  PressureFilter();
+   PressureArray[AltArrayIndex] = pressure;
+   PressureSum += PressureArray[AltArrayIndex];
 
-  if ((millis() - VSI_Timer1) >100) {
-       VSI_Timer2 = millis();
-       Alt2 = (float)44330 * (1 - pow(((float) pressure/((float) QNH * 100)), 0.190295)) * 3.281;
-       VSI = ((Alt2 - Alt1) * 1000.0 * 60.0)/(VSI_Timer2 - VSI_Timer1); 
-       vsiFilter();
-//       Serial.print("Alt1 = ");
-//       Serial.print(Alt1);
-//       Serial.print(" Alt2 = ");
-//       Serial.print(Alt2);
-//       Serial.print(" dT= ");
-//       Serial.print(VSI_Timer2 - VSI_Timer1);
-//       Serial.print(" VSI = ");
-//       Serial.println(VSI);
-       // cheat
-       if (abs(VSI)<60) {
-        VSI=0;
-       }
-       Alt1 = Alt2;
-       VSI_Timer1 = VSI_Timer2;
+  AltArrayIndex +=1;                         // shift the index for next time
+  if (AltArrayIndex == AltArraySize) {      // if we reached the top of the array
+    AltArrayIndex = 0;                       //go to the start of the array
+   
+    
   }
 
-//           Serial.print("status      ");
-//           Serial.println(status1, BIN);
-//           Serial.print("pressure  RAW  (Pa) ");
-//           Serial.println(pressure);
-//           Serial.print("Temperature  RAW ");
-//           Serial.println((temperature_data*200/2047)-50);
-//           Serial.print("c = ");
-//           Serial.println(c);
-//           Serial.print("d = ");
-//           Serial.println(d);
-//           Serial.print(",");
-//           PressureFilter();
-//         Serial.print("pressure  Filtered  (Pa) ");
-//           Serial.print(pressure);
-           
-//          Altitude = (float)44330 * (1 - pow(((float) pressure/((float) QNH * 100)), 0.190295)) * 3.281;
-//          Serial.print(",");
-//          Serial.println(Altitude);
+   pressure = PressureSum/AltArraySize;
+   Altitude = (float)44330 * (1 - pow(((float)pressure/((float)QNH * 100.0)), 0.190295)) * 3.281;
 
+   if (VSIperiod < millis() - VSIlast) {
+     VSIlast = millis();
+        
+//     SumAlt = SumAlt - VSIArray[VSIArrayIndex] + Altitude;
+//     SumTime = SumTime - VSITimeArray[VSIArrayIndex] + VSIlast;
+//     SumTimeSquare = SumTimeSquare - VSITimeArray[VSIArrayIndex] * VSITimeArray[VSIArrayIndex] + VSIlast * VSIlast;
+//     SumTimeAlt = SumTimeAlt - VSIArray[VSIArrayIndex]*VSITimeArray[VSIArrayIndex] +  Altitude * VSIlast;
 
+     VSIArray[VSIArrayIndex] = Altitude;
+     VSITimeArray[VSIArrayIndex] = VSIlast;
+     
+// linear regression 
+// we recalsulate SUM's every time we need to do the regression
+// the reason is that time values become too large for rolling sum
+// so the timescale needs to be shifted left by the smallest time value in the array
 
+      TimeShift=VSITimeArray[0];
+      for(i=0; i < VSIArraySize; i++){
+        if (TimeShift > VSITimeArray[i]) {
+           TimeShift = VSITimeArray[i];
+        }
+      }
 
-}
+      SumAlt = 0;
+      SumTime = 0;
+      SumTimeSquare = 0;
+      SumTimeAlt = 0;
+      for(i=0; i < VSIArraySize; i++){
+        SumAlt += VSIArray[i];
+        SumTime = SumTime + VSITimeArray[i] - TimeShift;
+        SumTimeSquare += (VSITimeArray[i]-TimeShift)*(VSITimeArray[i]-TimeShift);
+        SumTimeAlt += VSIArray[i]*(VSITimeArray[i]-TimeShift);
+      }
+/*
+     VSIFirstIndex = VSIArrayIndex + 1;
+     if (VSIFirstIndex == VSIArraySize) {
+       VSIFirstIndex = 0;
+     }
+*/
 
-void PressureFilter() {
-// Simple Kalman filter
+     VSI = (VSIArraySize*SumTimeAlt - SumTime * SumAlt)*60000/(VSIArraySize*SumTimeSquare-SumTime*SumTime);
 
-Pr_p = Pr_p + Pr_q;
+     VSIArrayIndex +=1;
+     if (VSIArrayIndex == VSIArraySize) {
+        VSIArrayIndex = 0;
+     }
+   
+   
+   }
+   
 
-Pr_k = Pr_p / (Pr_p + Pr_r);
-Pr_x = Pr_x + Pr_k * (pressure - Pr_x);
-Pr_p = (1 - Pr_k) * Pr_p;
-pressure = Pr_x; 
-  
-}
+//   VSI = (AltArraySize*PressureTimeSum - TimeSum * PressureSum)*60000/(AltArraySize*TimeSquareSum - TimeSum * TimeSum);
+//   VSI = (float)44330 * (1 - pow(((float)VSI/((float)QNH * 100.0)), 0.190295)) * 3.281;
 
-void vsiFilter() {
-// Simple Kalman filter
-
-VSI_p = VSI_p + VSI_q;
-
-VSI_k = VSI_p / (VSI_p + VSI_r);
-VSI_x = VSI_x + VSI_k * (VSI - VSI_x);
-VSI_p = (1 - VSI_k) * VSI_p;
-VSI = VSI_x; 
-  
 }
