@@ -13,9 +13,9 @@ float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
   //T = T * 9.0 / 5.0 + 32.0; // Fahrenheit conversion
 
   OAT = T*10;
-  Serial.print("OAT Temperature x10: "); 
-  Serial.print(OAT);
-  Serial.println(" C"); 
+//  Serial.print("OAT Temperature x10: "); 
+//  Serial.print(OAT);
+//  Serial.println(" C"); 
   
   Humidity = 0;
   
