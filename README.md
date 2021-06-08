@@ -8,6 +8,9 @@ Unzip libraries.zip to the "libraries" folder in your Arduino environment.
 
 ## Release Notes: ##
 
+### 2021-06-08 ###
+* Bug fix for QNH setting
+
 ### 2021-06-01 ###
 
 * Altitude sensor filtering improvements. Moving Average used for filtering. Depth of the filtering is 60 points (about 1.5 seconds span)

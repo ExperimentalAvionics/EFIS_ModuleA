@@ -42,6 +42,7 @@ int i = 0;
 
 
   int QNH = 1013; //hPa
+  int QNH_new = 0;
   float Altitude = 0; // Altitude in feet
 
   int temperature_data=0;
@@ -134,13 +135,19 @@ if(CAN_MSGAVAIL == CAN.checkReceive())            // check if data coming
       switch (canId) {
           case CAN_QNH_Msg_ID:
             
-            QNH = (buf[1] << 8) | buf[0];
+            QNH_new = (buf[1] << 8) | buf[0];
 
-            if (Read_QNH() != QNH) {
+            // Serial.print("New QNH received: ");
+            // Serial.println(QNH_new);
+            // Serial.print("Old QNH: ");
+            // Serial.println(QNH);
+
+            if (QNH_new != QNH) {
+              QNH = QNH_new;
               Write_QNH();
               CAN_QNH_Timestamp = millis();
-              Serial.print("New QNH is written: ");
-              Serial.println(QNH);
+             // Serial.print("New QNH is written: ");
+             // Serial.println(QNH);
             }
             break;
           default: 
