@@ -8,6 +8,10 @@ Unzip libraries.zip to the "libraries" folder in your Arduino environment.
 
 ## Release Notes: ##
 
+### 2023-06-27 ###
+* Removed QNH re-broadcasting as unnecessary
+* Added code to read and broadcast backup battery data from CAN HUB ver 3
+
 ### 2021-06-08 ###
 * Bug fix for QNH setting
 

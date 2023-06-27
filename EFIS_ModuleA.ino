@@ -51,6 +51,11 @@ int i = 0;
   int OAT = 0;
   int Humidity = 0;
 
+// Backup battery data
+  unsigned int BAT_Voltage = 0;
+  byte BAT_Status = 0;
+  int BAT_Temperature = 0;
+
   unsigned int Airspeed = 0;
 //  int VerticalSpeed = 0;
   int AoA = 0;
@@ -77,16 +82,20 @@ const unsigned int CAN_AoA_Msg_ID = 41; // CAN Msg ID in DEC
 const unsigned int CAN_OAT_Msg_ID = 42; // CAN Msg ID in DEC
 const unsigned int CAN_RAW_Msg_ID = 43; // CAN Msg ID in DEC
 const unsigned int CAN_QNH_Msg_ID = 46; // CAN Msg ID in DEC
+const unsigned int CAN_BAT_Msg_ID = 86; // CAN Msg ID in DEC
 const unsigned int CAN_Air_Period = 300; // How often message sent in milliseconds
 const unsigned int CAN_AoA_Period = 200; // How often message sent in milliseconds
 const unsigned int CAN_OAT_Period = 2000; // How often message sent in milliseconds
 const unsigned int CAN_RAW_Period = 500; // How often message sent in milliseconds
 const unsigned int CAN_QNH_Period = 5000;
+const unsigned int CAN_BAT_Period = 3000; // How often message sent in milliseconds
 unsigned long CAN_Air_Timestamp = 0; // when was the last message sent
 unsigned long CAN_AoA_Timestamp = 0; // when was the last message sent
 unsigned long CAN_OAT_Timestamp = 0; // when was the last message sent
 unsigned long CAN_RAW_Timestamp = 0; // when was the last message sent
 unsigned long CAN_QNH_Timestamp = 0;
+unsigned long CAN_BAT_Timestamp = 0; // when was the last message sent
+
 int QNH_MemOffset = 0;
 
 unsigned char len = 0;
@@ -98,6 +107,8 @@ MCP_CAN CAN(CAN_CS_PIN);                                    // Set CS pin
 void setup()
 {
  Wire.begin(); // wake up I2C bus
+ pinMode(7, INPUT_PULLUP);
+ pinMode(9, INPUT_PULLUP);
  delay (50);
  Serial.begin(115200);
 
@@ -238,15 +249,40 @@ if (millis() > CAN_RAW_Timestamp + CAN_RAW_Period + random(0, 50)) {
 // QNH is stored in this module as well as Display modules where it can be changed.
 // Latest change in the Display module overwrites the QNH value on all devices.
 // The QNH gets re-broadcasted in case one of the units goes down 
-if (millis() > CAN_QNH_Timestamp + CAN_QNH_Period) {
+// !!!!!!!!!!!!!! QNH re-broadcasting has been removed as unnnecesary !!!!!!!!!!!!!
+// !!!!!!!!!!!! re-broadcasting code left commented out pending testing !!!!!!!!!!!
+/* if (millis() > CAN_QNH_Timestamp + CAN_QNH_Period) {
 
  Send_QNH();
  CAN_QNH_Timestamp = millis();
 
 }
+*/
 
+/*
+ * The section below does not belong to Module A (air pressure data)
+ * The data below is most suitable for EMS module
+ * EMS module does not have analog inputs left available
+ * so the backup battery data will be capured bu this module until EMS module expanded (one day)
+*/
 
+// Send Backup Battery data
+if (millis() > CAN_BAT_Timestamp + CAN_BAT_Period + random(0, 100)) {
+  
+  Get_BAT();
+  
+  canMsg[0] = BAT_Voltage;
+  canMsg[1] = BAT_Voltage >> 8;
+
+  canMsg[2] = BAT_Status;
+
+  canMsg[3] = BAT_Temperature;
+
+  CAN.sendMsgBuf(CAN_BAT_Msg_ID, 0, 4, canMsg); 
+
+  CAN_BAT_Timestamp = millis();
  
+}
 
  
 }
